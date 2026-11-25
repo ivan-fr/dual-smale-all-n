@@ -1,0 +1,481 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{microtype}
+
+\geometry{margin=2.5cm}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\CC}{\mathbb{C}}
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\NN}{\mathbb{N}}
+\newcommand{\DD}{\mathbb{D}}
+\DeclareMathOperator{\RePart}{Re}
+\DeclareMathOperator{\ImPart}{Im}
+
+\title{All-Degree Structural and Asymptotic Lower Bounds\\
+for the Dual Smale Mean Value Conjecture\\
+with Complete Lean 4 Formalization}
+
+\author{Ivan Besevic\\
+ESIEE-IT, France\\
+\texttt{ivan.besevic@edu.esiee-it.fr}}
+
+\date{November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The Dual Smale Mean Value Conjecture (Dubinin--Sugawa, 2009) asserts that for every complex polynomial $P(z) = z + a_2 z^2 + \dots + a_n z^n$ ($n \ge 2$, $a_n \neq 0$), there exists a critical point $\zeta$ of $P$ such that $|P(\zeta)/\zeta| \ge 1/n$, with equality achieved by $P_n(z) = (1 - (1 - cz)^n)/(nc)$. While the conjecture has been completely resolved up to degree $n = 9$, the best unconditional all-degree lower bound in the literature remains $(n - 1/2)^{1/n}/n^2 = (1 + o(1))/n^2$ (Jatar--Ng, 2026).
+
+In this paper, we establish four unconditional, purely analytic all-degree theorems valid for every $n \ge 2$, and formally verify every theorem in Lean~4.36.0 with zero \texttt{sorry}, zero \texttt{native\_decide}, and strictly the three standard axioms (\texttt{propext}, \texttt{Classical.choice}, \texttt{Quot.sound}):
+\begin{enumerate}
+\item \textbf{Supporting Half-Plane Exact $1/n$ Theorem (with Strict Uniqueness):} If $P$ has a critical point $\zeta_j \neq 0$ such that all critical points satisfy $\RePart(\zeta_k/\zeta_j) \ge 1$ (equivalently, all inverse ratios $w_k = \zeta_j/\zeta_k$ lie in $\overline{D(1/2, 1/2)}$), then $|P(\zeta_j)/\zeta_j| \ge 1/n$ for all $n \ge 2$. For $n \ge 3$, equality holds if and only if $P(z) = (1 - (1 - z/\zeta_j)^n)/(n/\zeta_j)$. The proof introduces the reciprocal Enestr\"om--Kakeya identity
+\[
+n(n-1)\, G_n(w) = \sum_{j=0}^{n-2} (n - 1 - j)(1 - w)^j,
+\]
+establishing zero-freeness of $G_n$ on $|1 - w| \le 1$ in five lines.
+\item \textbf{Sharp Zero-Free Disk and All-Degree Grace--Walsh--Szeg\"o Critical-Value Bound:} Every nonzero root $z_0$ of $P$ satisfies $|z_0| \ge 2\sin(\pi/n)\,r_{\min}$ (sharp at $P_n$), where $r_{\min} = \min_{P'(\zeta)=0} |\zeta|$. Combining this with an elementary polynomial mountain pass theorem (proved via an explicit continuous Newton-cutoff path deformation, avoiding Riemann--Hurwitz or covering space theory), we prove
+\[
+\max_{P'(\zeta)=0} |P(\zeta)| \ge \frac{49}{50\,n}\,r_{\min} = \frac{0.98}{n}\,r_{\min} \qquad (\forall\, n \ge 2),
+\]
+with exact constant $1/n$ for $n = 2, 3$ and asymptotic limit $(1 - e^{-4})/n > 0.9816/n$ (and $0.9932/n$ at optimal radius). Immediate corollaries yield $\max_j |P(\zeta_j)/\zeta_j| \ge 49/(50n)$ for all equal-modulus polynomials of arbitrary degree (98\% of the conjecture) and $\max_j |P(\zeta_j)/\zeta_j| \ge 49/(50\,\kappa(P)\,n)$ for critical-point spread $\kappa(P) = r_{\max}/r_{\min}$, strictly improving upon the $1/n^2$ barrier whenever $\kappa(P) < 0.98\,n$.
+\item \textbf{Isolated Minimal Critical Point Theorem:} If a critical point $\zeta_j$ satisfies $|\zeta_k| \ge n|\zeta_j|$ for all $k \neq j$, then $|P(\zeta_j)/\zeta_j| > 5/18$ (an $n$-independent constant) and $|P(\zeta_j)/\zeta_j| \ge 1/n$ for all $n \ge 2$ (strictly for $n \ge 3$).
+\item \textbf{Universal Strict Local Minimum Quadratic Form:} For all $n \ge 3$, the second variation of $|n P(1)|^2$ on the closed unit polydisk around $P_n$ is strictly positive definite with explicit eigenvalue $n/((n-1)^2(n-2))$.
+\end{enumerate}
+Finally, we analyze the perturbed-Chebyshev mechanism showing why single-component univalent disk methods face an inherent $O(1/n^2)$ barrier, and formulate a stronger sum conjecture $\sum_{j=1}^{n-1} |P(\zeta_j)/\zeta_j| \ge 1/e$ supported by numerical evidence up to $n = 25$.
+\end{abstract}
+
+\section{Introduction}
+
+Let $\mathcal{P}_n$ denote the class of complex polynomials of degree $n \ge 2$ normalized by $P(0) = 0$ and $P'(0) = 1$:
+\[
+P(z) = z + a_2 z^2 + \dots + a_n z^n \in \CC[z], \qquad a_n \neq 0.
+\]
+Let $\zeta_1, \dots, \zeta_{n-1} \in \CC \setminus \{0\}$ denote the critical points of $P$ (zeros of $P'$, counted with multiplicity), and set
+\[
+r_{\min}(P) := \min_{1 \le j \le n-1} |\zeta_j|, \qquad r_{\max}(P) := \max_{1 \le j \le n-1} |\zeta_j|, \qquad \kappa(P) := \frac{r_{\max}(P)}{r_{\min}(P)} \ge 1.
+\]
+In 1981, Smale~\cite{Smale1981} conjectured that $\min_j |P(\zeta_j)/\zeta_j| \le (n-1)/n$ (the primal Smale Mean Value Conjecture). In 2009, Dubinin and Sugawa~\cite{DubininSugawa2009} posed the companion dual problem:
+
+\begin{conjecture}[Dual Smale Mean Value Conjecture~\cite{DubininSugawa2009}]
+\label{conj:dual-smale}
+For every $n \ge 2$ and every $P \in \mathcal{P}_n$,
+\[
+\max_{1 \le j \le n-1} \left|\frac{P(\zeta_j)}{\zeta_j}\right| \ge \frac{1}{n},
+\]
+with equality if and only if $P(z) = P_{n,c}(z) := \frac{1 - (1 - cz)^n}{nc}$ for some $c \in \CC \setminus \{0\}$.
+\end{conjecture}
+
+\paragraph{State of the art.}
+For fixed small degrees, Conjecture~\ref{conj:dual-smale} was proved for $n \le 4$ by Dubinin--Sugawa~\cite{DubininSugawa2009}, for $n \le 6$ by Ng--Zhang~\cite{NgZhang2016}, for $n = 7$ by Tyson~\cite{Tyson2019} (and formally verified alongside $n = 8, 9$ in~\cite{BesevicN8,BesevicN9}).
+For general degree $n \ge 2$, unconditional lower bounds have progressed from $1/(n 4^n)$ (Dubinin--Sugawa~\cite{DubininSugawa2009}) and $1/4^n$ (Ng--Zhang~\cite{NgZhang2016}) to $\frac{1}{n}\tan(\frac{\pi}{4n})$ and $1/n^2$ (Dubinin~\cite{Dubinin2019}), and most recently to
+\[
+\max_{1 \le j \le n-1} \left|\frac{P(\zeta_j)}{\zeta_j}\right| \ge \frac{(n - 1/2)^{1/n}}{n^2} = \frac{1 + o(1)}{n^2}
+\]
+by Jatar and Ng~\cite{JatarNg2026}. Exact $1/n$ bounds for all $n \ge 2$ have previously been established only for polynomials with all real critical points and for odd polynomials (Tang~\cite{Tang2025}). Note that while Dubinin~\cite{Dubinin2006} resolved the \emph{primal} Smale conjecture for polynomials with equal-modulus critical points, the \emph{dual} equal-modulus problem remained open at the $O(1/n)$ scale.
+
+\paragraph{Main results.}
+We establish four unconditional all-degree theorems valid for every $n \ge 2$, breaking the $O(1/n^2)$ barrier across broad structural regimes and achieving the exact constant $1/n$ (with strict uniqueness) in the supporting half-plane and isolated critical-point regimes. Every theorem in this paper is completely formalized and kernel-verified in Lean~4.36.0 (Section~\ref{sec:lean}).
+
+\section{Algebraic Framework and the Reciprocal Enestr\"om--Kakeya Identity}
+
+Given $P \in \mathcal{P}_n$ with critical points $\zeta_1, \dots, \zeta_{n-1} \in \CC \setminus \{0\}$, define the inverse critical points $w_k := 1/\zeta_k \in \CC \setminus \{0\}$. Then
+\[
+P'(z) = \prod_{k=1}^{n-1} (1 - w_k z) = \sum_{m=0}^{n-1} (-1)^m e_m(w)\, z^m,
+\]
+where $e_m(w)$ is the $m$-th elementary symmetric polynomial in $w = (w_1, \dots, w_{n-1})$. Integrating term by term with $P(0) = 0$ yields
+\begin{equation}
+\label{eq:poly-inv}
+P(z) = \sum_{m=0}^{n-1} \frac{(-1)^m}{m+1} e_m(w)\, z^{m+1} = z \sum_{m=0}^{n-1} \frac{(-1)^m}{m+1} e_m(w_1 z, \dots, w_{n-1} z).
+\end{equation}
+By dilation invariance $P_c(z) = c^{-1} P(cz)$, to evaluate $|P(\zeta_j)/\zeta_j|$ at a designated critical point $\zeta_j$ we may rescale so that $\zeta_j = 1$ (hence $w_j = 1$), writing the remaining $n - 2$ normalized inverse critical points as $w_{\mathrm{rest}} = (u_1, \dots, u_{n-2})$ with $u_i = \zeta_j / \zeta_{k_i}$. Using $e_{m+1}(w_{\mathrm{rest}}, 1) = e_{m+1}(w_{\mathrm{rest}}) + e_m(w_{\mathrm{rest}})$, telescoping yields the symmetric multiaffine form
+\begin{equation}
+\label{eq:p1form}
+\frac{P(\zeta_j)}{\zeta_j} = \mathcal{F}_n(w_{\mathrm{rest}}) := \sum_{m=0}^{n-2} \frac{(-1)^m}{(m+1)(m+2)}\, e_m(w_{\mathrm{rest}}).
+\end{equation}
+Its diagonal specialization $G_n(w) := \mathcal{F}_n(w, \dots, w)$ satisfies two fundamental exact identities.
+
+\begin{proposition}[Closed Form and Reciprocal Enestr\"om--Kakeya Identity]
+\label{prop:gn-identities}
+For every $n \ge 2$ and every $w \in \CC$,
+\begin{align}
+n(n-1)\, w^2\, G_n(w) &= n w - 1 + (1 - w)^n, \label{eq:gn-closed} \\
+n(n-1)\, G_n(w) &= R_n(1 - w) := \sum_{j=0}^{n-2} (n - 1 - j)(1 - w)^j. \label{eq:gn-rn}
+\end{align}
+Moreover, $G_n(1) = 1/n$ and $G_n'(1) = -(n-2)/(n(n-1)) \neq 0$ for every $n \ge 3$.
+\end{proposition}
+
+\begin{proof}
+Expanding $(1 - w)^n = 1 - nw + \sum_{k=0}^{n-2} (-1)^k \binom{n}{k+2} w^{k+2}$ and applying double binomial absorption $n(n-1)\binom{n-2}{k} = (k+1)(k+2)\binom{n}{k+2}$ yields~\eqref{eq:gn-closed}.
+For~\eqref{eq:gn-rn}, set $u = 1 - w$. A direct telescoping sum gives
+\begin{equation}
+\label{eq:rn-tel1}
+(1 - u) R_n(u) = (n - 1) - \sum_{k=1}^{n-1} u^k,
+\end{equation}
+and multiplying again by $(1 - u)$ gives
+\[
+(1 - u)^2 R_n(u) = (n - 1)(1 - u) - (u - u^n) = n(1 - u) - 1 + u^n = nw - 1 + (1 - w)^n.
+\]
+Dividing by $w^2 = (1 - u)^2$ proves~\eqref{eq:gn-rn} for all $w \neq 0$, and at $w = 0$ both sides equal $n(n-1)/2$. Evaluating~\eqref{eq:gn-rn} and its derivative at $w = 1$ ($u = 0$) immediately yields $G_n(1) = (n-1)/(n(n-1)) = 1/n$ and $G_n'(1) = -(n-2)/(n(n-1))$.
+\end{proof}
+
+\section{Theorem 1: Supporting Half-Plane Exact $1/n$ Bound and Strict Uniqueness}
+
+\begin{lemma}[Zero-Freeness of $G_n$ on $|1 - w| \le 1$]
+\label{lem:gn-zerofree}
+For every $n \ge 2$ and every $w \in \CC$ with $|1 - w| \le 1$, we have $G_n(w) \neq 0$.
+\end{lemma}
+
+\begin{proof}
+Set $u = 1 - w$, so $|u| \le 1$. By~\eqref{eq:gn-rn}, it suffices to show $R_n(u) \neq 0$. If $u = 1$, then $R_n(1) = n(n-1)/2 \neq 0$. If $u \neq 1$ and $|u| \le 1$, then $\RePart(u) < 1$ strictly (since $\RePart(u)^2 + \ImPart(u)^2 \le 1$). If $R_n(u) = 0$, then~\eqref{eq:rn-tel1} implies $\sum_{k=1}^{n-1} u^k = n - 1$; taking real parts yields
+\[
+n - 1 = \sum_{k=1}^{n-1} \RePart(u^k) \le \RePart(u) + \sum_{k=2}^{n-1} |u|^k < 1 + (n - 2) = n - 1,
+\]
+a contradiction.
+\end{proof}
+
+\begin{lemma}[Minimum Modulus of $G_n$ on $\overline{D(1/2, 1/2)}$]
+\label{lem:gn-halfdisk}
+For every $n \ge 2$ and every $w \in \overline{D(1/2, 1/2)} = \{w \in \CC : |w - 1/2| \le 1/2\}$,
+\[
+n |G_n(w)| \ge 1.
+\]
+Moreover, for every $n \ge 3$ and every $w \in \overline{D(1/2, 1/2)} \setminus \{1\}$, the inequality is strict: $n |G_n(w)| > 1$.
+\end{lemma}
+
+\begin{proof}
+First consider the boundary circle $|w - 1/2| = 1/2$, characterized by $|w|^2 = \RePart(w) =: x \in [0, 1]$.
+At $w = 0$, $n|G_n(0)| = n/2 \ge 1$ (strictly $> 1$ for $n \ge 3$).
+For $w \neq 0$, we have $x > 0$ and the exact circle identities
+\[
+|1 - w|^2 = 1 - x, \qquad |nw - 1|^2 = (n^2 - 2n)x + 1.
+\]
+Since $1 - x \in [0, 1]$ and $n \ge 2$, $|1 - w|^n = (1 - x)^{n/2} \le 1 - x$. Furthermore, the algebraic identity
+\[
+\bigl((n^2 - 2n)x + 1\bigr) - \bigl(1 + (n - 2)x\bigr)^2 = (n - 2)^2\, x(1 - x) \ge 0
+\]
+yields $|nw - 1| \ge 1 + (n - 2)x$, with strict inequality whenever $n \ge 3$ and $x \in (0, 1)$ (i.e., $w \neq 0, 1$). By~\eqref{eq:gn-closed} and the reverse triangle inequality,
+\[
+(n - 1) x \cdot n|G_n(w)| = |nw - 1 + (1 - w)^n| \ge |nw - 1| - |1 - w|^n \ge (1 + (n - 2)x) - (1 - x) = (n - 1)x.
+\]
+Dividing by $(n - 1)x > 0$ gives $n|G_n(w)| \ge 1$ on $\partial D(1/2, 1/2)$, with strict inequality for $n \ge 3$ and $w \neq 1$.
+
+Now note that $|w - 1/2| \le 1/2$ implies $|1 - w| \le |1/2| + |w - 1/2| \le 1$. By Lemma~\ref{lem:gn-zerofree}, $G_n$ is nonvanishing on $\overline{D(1/2, 1/2)}$, so $f(w) := (n G_n(w))^{-1}$ is holomorphic on $\overline{D(1/2, 1/2)}$ with $|f(w)| \le 1$ on $\partial D(1/2, 1/2)$. By the Maximum Modulus Principle, $|f(w)| \le 1$ throughout $\overline{D(1/2, 1/2)}$, proving $n|G_n(w)| \ge 1$.
+
+For strictness when $n \ge 3$, if $n|G_n(w_0)| = 1$ at an interior point $w_0 \in D(1/2, 1/2)$, then $|n G_n|$ attains a local minimum at $w_0$ with $G_n(w_0) \neq 0$; by the Minimum Modulus Principle, the polynomial $G_n$ is locally constant near $w_0$, hence constant on $\CC$, contradicting $n|G_n(0)| = n/2 > 1 = n|G_n(1)|$.
+\end{proof}
+
+To lift Lemma~\ref{lem:gn-halfdisk} from the diagonal $G_n$ to the full multiaffine form $\mathcal{F}_n$ with \emph{strict uniqueness}, we use a boundary-root refinement of Laguerre's polar derivative theorem.
+
+\begin{lemma}[Strict Boundary-Root Grace--Walsh--Szeg\"o Uniqueness]
+\label{lem:gws-unique}
+Let $m \ge 2$, $c \in \CC$, $r > 0$, $b = c + r$, and let $F(z_1, \dots, z_m)$ be a symmetric multiaffine polynomial with diagonal $D(\zeta) = F(\zeta, \dots, \zeta)$ of degree at most $m$. Suppose $D(b) = 0$, $D'(b) \neq 0$, and $D(\zeta) \neq 0$ for all $\zeta \in \overline{D(c, r)} \setminus \{b\}$. If $z_1, \dots, z_m \in \overline{D(c, r)}$ and $z_{i_0} \neq b$ for at least one index $i_0$, then $F(z_1, \dots, z_m) \neq 0$.
+\end{lemma}
+
+\begin{proof}
+By affine rescaling $z \mapsto (z - c)/r$, we may assume $\overline{D(c, r)} = \overline{\DD}$ and $b = 1$, and by symmetry of $F$ we may assume $z_m \neq 1$. Consider the polar derivative $Q(z) = m D(z) + (z_m - z) D'(z)$.
+At $z = 1$, $Q(1) = (z_m - 1) D'(1) \neq 0$. At $z = z_m$, $Q(z_m) = m D(z_m) \neq 0$.
+For any $z \in \overline{\DD} \setminus \{1, z_m\}$, let $a_1, \dots, a_d$ ($d \le m$) be the roots of $D$. Since $D'(1) \neq 0$, the root $1$ has multiplicity $1$, and every other root satisfies $|a_k| > 1$. Setting $\alpha = 1 - z \overline{z_m}$, we have $\RePart(\alpha) > 0$, and for every root $a_k$,
+\[
+2 \RePart\!\left(\alpha\,\frac{a_k - z_m}{a_k - z}\right) = (1 - |z|^2)\left|\frac{a_k - z_m}{a_k - z}\right|^2 + (1 - |z_m|^2) + (|a_k|^2 - 1)\left|\frac{z - z_m}{a_k - z}\right|^2 \ge 0,
+\]
+with strict inequality whenever $|a_k| > 1$. Since $m \ge 2$ and $1$ has multiplicity $1$, either $d < m$ (so $(m - d)\RePart(\alpha) > 0$) or $d = m \ge 2$ and there exists a root $a_k$ with $|a_k| > 1$. In either case, $\RePart\bigl(\alpha\, Q(z) / D(z)\bigr) > 0$, so $Q(z) \neq 0$ for all $z \in \overline{\DD}$. Applying the standard Grace--Walsh--Szeg\"o theorem to the remaining $m - 1$ variables with diagonal $Q/m$ yields $F(z_1, \dots, z_m) \neq 0$.
+\end{proof}
+
+\begin{theorem}[Theorem 1: Supporting Half-Plane Dual Smale Theorem]
+\label{thm:half-plane}
+Let $n \ge 2$ and $P \in \mathcal{P}_n$ have critical points $\zeta_1, \dots, \zeta_{n-1}$. Suppose there exists a critical point $\zeta_j$ such that all critical points lie in the supporting half-plane
+\[
+\RePart\!\left(\frac{\zeta_k}{\zeta_j}\right) \ge 1 \qquad (\forall\, 1 \le k \le n - 1),
+\]
+equivalently $w_k := \zeta_j/\zeta_k \in \overline{D(1/2, 1/2)}$ for all $k$. Then
+\[
+\left|\frac{P(\zeta_j)}{\zeta_j}\right| \ge \frac{1}{n}.
+\]
+Moreover, for every $n \ge 3$, equality holds if and only if $\zeta_k = \zeta_j$ for all $k$, i.e., $P(z) = \frac{1 - (1 - z/\zeta_j)^n}{n/\zeta_j}$.
+\end{theorem}
+
+\begin{proof}
+Rescaling so $\zeta_j = 1$, we have $P(\zeta_j)/\zeta_j = \mathcal{F}_n(w_{\mathrm{rest}})$ with $w_i \in \overline{D(1/2, 1/2)}$.
+For $n = 2$, $\mathcal{F}_2 = 1/2$. For $n \ge 3$, the shifted-disk Grace--Walsh--Szeg\"o theorem yields $\zeta \in \overline{D(1/2, 1/2)}$ such that $\mathcal{F}_n(w_{\mathrm{rest}}) = G_n(\zeta)$, and Lemma~\ref{lem:gn-halfdisk} gives $|\mathcal{F}_n(w_{\mathrm{rest}})| = |G_n(\zeta)| \ge 1/n$.
+
+For strict uniqueness when $n \ge 3$, suppose $w_{i_0} \neq 1$ and $|\mathcal{F}_n(w_{\mathrm{rest}})| = 1/n$; set $\lambda := \mathcal{F}_n(w_{\mathrm{rest}})$. For $n = 3$, $\mathcal{F}_3(w_1) = G_3(w_1)$, which directly contradicts Lemma~\ref{lem:gn-halfdisk}. For $n \ge 4$ ($m = n - 2 \ge 2$):
+\begin{itemize}
+\item If $\lambda \neq 1/n$, then by Grace--Walsh--Szeg\"o there exists $\zeta \in \overline{D(1/2, 1/2)}$ with $G_n(\zeta) = \lambda$; necessarily $\zeta \neq 1$ (since $G_n(1) = 1/n$), so Lemma~\ref{lem:gn-halfdisk} gives $|\lambda| = |G_n(\zeta)| > 1/n$, a contradiction.
+\item If $\lambda = 1/n$, then $D(\zeta) := G_n(\zeta) - 1/n$ satisfies $D(1) = 0$, $D'(1) = G_n'(1) \neq 0$ (Proposition~\ref{prop:gn-identities}), and $D(\zeta) \neq 0$ on $\overline{D(1/2, 1/2)} \setminus \{1\}$ (Lemma~\ref{lem:gn-halfdisk}). Applying Lemma~\ref{lem:gws-unique} to $\mathcal{F}_n - 1/n$ gives $\mathcal{F}_n(w_{\mathrm{rest}}) \neq 1/n$, a contradiction. \qedhere
+\end{itemize}
+\end{proof}
+
+\begin{remark}
+Geometrically, Theorem~\ref{thm:half-plane} applies to any polynomial $P \in \mathcal{P}_n$ whose critical-point hull $\mathrm{conv}\{\zeta_1, \dots, \zeta_{n-1}\}$ has a supporting line $L$ separating it from the origin such that the closest point of $L$ to $0$ is itself a critical point $\zeta_j$ (in particular, whenever a closest critical point $\zeta_j$ of minimal modulus lies on a supporting line perpendicular to the ray $0\zeta_j$, e.g.\ all positive real critical points or any critical-point cluster in the half-plane $\RePart(\zeta/\zeta_j) \ge 1$).
+\end{remark}
+
+\section{Theorem 2: Sharp Zero-Free Disk, Elementary Mountain Pass, and All-Degree GWS Critical-Value Lower Bound}
+
+\begin{theorem}[Theorem 2A: Sharp Zero-Free Disk]
+\label{thm:zero-free}
+For every $n \ge 2$ and every $P \in \mathcal{P}_n$, every nonzero root $z_0$ of $P$ satisfies
+\[
+|z_0| \ge 2 \sin\!\left(\frac{\pi}{n}\right) r_{\min}(P).
+\]
+Equality is achieved by $P_n(z) = (1 - (1 - z)^n)/n$, whose roots are $1 - e^{2\pi i k/n}$ ($1 \le k \le n - 1$).
+\end{theorem}
+
+\begin{proof}
+Suppose $0 < |z| < 2\sin(\pi/n)\, r_{\min}$. By~\eqref{eq:poly-inv}, $P(z) = z\,\mathcal{H}_n(w_1 z, \dots, w_{n-1} z)$, where $|w_k z| \le R := |z|/r_{\min} < 2\sin(\pi/n)$. By Grace--Walsh--Szeg\"o on $\overline{D(0, R)}$, there exists $v$ with $|v| \le R$ such that $P(z) = z\, F_n(v)$, where $n v F_n(v) = 1 - (1 - v)^n$ (with $F_n(0) = 1$). If $P(z) = 0$, then $v \neq 0$ and $(1 - v)^n = 1$, so $1 - v = e^{i\theta}$ with $\theta \in (-\pi, \pi] \setminus \{0\}$ and $n\theta = 2\pi k$ ($k \in \mathbb{Z} \setminus \{0\}$). Hence $|\theta| \ge 2\pi/n$ and $|v| = |1 - e^{i\theta}| = 2\sin(|\theta|/2) \ge 2\sin(\pi/n) > R$, a contradiction.
+\end{proof}
+
+To convert a lower bound on a circle $|z| = r$ inside the zero-free disk into a critical-value lower bound without invoking Riemann--Hurwitz, covering spaces, or univalent mapping theory, we prove a completely elementary polynomial mountain pass theorem.
+
+\begin{theorem}[Theorem 2B: Elementary Polynomial Mountain Pass Theorem]
+\label{thm:mountain-pass}
+Let $P \in \CC[z]$ have $\deg P \ge 2$, $P(0) = 0$, and $P'(0) \neq 0$. Suppose there exist $r > 0$ and $M > 0$ such that $P(z) \neq 0$ for all $0 < |z| \le r$, and $|P(z)| \ge M$ for all $|z| = r$. Then there exists a critical point $\zeta \in \CC$ of $P$ such that $|P(\zeta)| \ge M$.
+\end{theorem}
+
+\begin{proof}
+Write $P(z) = z Q(z)$ with $\deg Q \ge 1$ and $Q(0) = P'(0) \neq 0$. By the Fundamental Theorem of Algebra, $Q$ has a root $z_1 \neq 0$; by the zero-free hypothesis, $|z_1| > r$. Define the minimax level
+\[
+L := \inf \left\{ B \in \RR : \exists\, \gamma \in C([0,1], \CC),\ \gamma(0) = 0,\ \gamma(1) = z_1,\ \max_{t \in [0,1]} |P(\gamma(t))| \le B \right\}.
+\]
+Every continuous path $\gamma$ from $0$ to $z_1$ crosses the circle $|z| = r$ by the Intermediate Value Theorem applied to $t \mapsto |\gamma(t)|$, so $L \ge M > 0$.
+
+Suppose for contradiction that no critical point $\zeta$ of $P$ satisfies $|P(\zeta)| \ge M$ (in particular, $|P(\zeta)| \neq L$ for every root $\zeta$ of $P'$). Since $P'$ has finitely many roots, there exists $\varepsilon \in (0, L/2)$ such that $P'(z) \neq 0$ throughout the closed bounded (hence compact) band $K := \{z \in \CC : L - \varepsilon \le |P(z)| \le L + \varepsilon\}$. Let $\delta := \inf_{z \in K} |P'(z)| > 0$ (or $\delta = 1$ if $K = \emptyset$), let $R \ge 0$ satisfy $K \subset \overline{D(0, R)}$, and let $C > 0$ be a polynomial Taylor constant such that $|P(z + h) - P(z) - P'(z)h| \le C|h|^2$ whenever $|z| \le R$ and $|h| \le 1$.
+
+Define the continuous cutoff $\phi(y) := \max\bigl(0, \min(1, \frac{y - (L - \varepsilon)}{\varepsilon/2})\bigr) \in [0, 1]$ and the globally continuous damped Newton vector field
+\[
+v(z) := \frac{\phi(|P(z)|)\, P(z)\, \overline{P'(z)}}{\max(|P'(z)|^2, \delta^2/2)}.
+\]
+On $K$, $v(z) = \phi(|P(z)|)\, P(z)/P'(z)$ and $|v(z)| \le \phi(|P(z)|)\, V$, where $V := (L + \varepsilon)/\delta$. Set $s := \min\bigl(1/2, 1/V, (L - \varepsilon)/(2 C V^2)\bigr) > 0$ and $\eta := \min(\varepsilon/2, s(L - \varepsilon)/4) > 0$. Choose a path $\gamma$ from $0$ to $z_1$ with $\max_t |P(\gamma(t))| < L + \eta$, and define the deformed continuous path $\tilde{\gamma}(t) := \gamma(t) - s v(\gamma(t))$. Since $\phi(0) = 0$, we have $\tilde{\gamma}(0) = 0$ and $\tilde{\gamma}(1) = z_1$. For any $t \in [0, 1]$, set $z = \gamma(t)$:
+\begin{itemize}
+\item If $|P(z)| \le L - \varepsilon$, then $\phi(|P(z)|) = 0$ and $|P(\tilde{\gamma}(t))| = |P(z)| \le L - \varepsilon \le L - \eta$.
+\item If $z \in K$, letting $h = -s v(z)$ (so $|h| \le s \phi(|P(z)|) V \le 1$) and noting $\phi^2 \le \phi$, we obtain
+\begin{align*}
+|P(z + h)| &\le (1 - s \phi(|P(z)|))|P(z)| + C s^2 \phi(|P(z)|)^2 V^2 \\
+&\le |P(z)| - s \phi(|P(z)|)\bigl(|P(z)| - C s V^2\bigr) \le |P(z)| - \frac{s(L - \varepsilon)}{2}\,\phi(|P(z)|).
+\end{align*}
+If $|P(z)| \le L - \varepsilon/2$, this gives $|P(\tilde{\gamma}(t))| \le L - \varepsilon/2 \le L - \eta$; if $|P(z)| > L - \varepsilon/2$, then $\phi(|P(z)|) = 1$, giving $|P(\tilde{\gamma}(t))| \le (L + \eta) - 2\eta = L - \eta$.
+\end{itemize}
+Thus $\max_{t \in [0,1]} |P(\tilde{\gamma}(t))| \le L - \eta < L$, contradicting the definition of $L$.
+\end{proof}
+
+\begin{lemma}[Circle Lower Bound for $1 - (1 - u)^n$]
+\label{lem:circle-bound}
+Define the radii $r_2 = r_3 = 1$, $r_4 = 3/4$, $r_5 = 4/5$, and $r_n = 4/n$ for $n \ge 6$. Then for every $n \ge 2$, we have $0 < r_n < 2\sin(\pi/n)$, and for every $u \in \CC$ with $|u| = r_n$,
+\[
+|1 - (1 - u)^n| \ge \frac{49}{50} = 0.98
+\]
+(with exact bound $|1 - (1 - u)^n| \ge 1$ for $n = 2, 3$).
+\end{lemma}
+
+\begin{proof}[Proof sketch (fully formalized in Lean~4)]
+For $n = 2$, $|1 - (1 - u)^2| = |u(2 - u)| \ge 1$. For $n = 3$ and $|u| = 1$, exact expansion gives $|1 - (1 - u)^3|^2 = 1 + 12(1 - \RePart u)^2 \ge 1$. For $n = 4$ ($r_4 = 3/4$) and $n = 5$ ($r_5 = 4/5$), writing $x = \RePart u$ and $t = r_n - x \ge 0$ yields exact sum-of-squares certificates:
+\begin{align*}
+|1 - (1 - u)^4|^2 &= \frac{65025}{65536} + \left(\frac{3}{4} - x\right)\!\left(\frac{6885}{512} - \frac{963}{32} x + 18 x^2\right) \ge \left(\frac{255}{256}\right)^2 > \left(\frac{49}{50}\right)^2, \\
+|1 - (1 - u)^5|^2 &= \frac{9759376}{9765625} + t\left[t\!\left(\frac{256}{5}t^2 - 20t + 2\right) \right. \\
+&\qquad\qquad\qquad\quad \left. + \left(\frac{2116}{125}\, t^2 - \frac{11242}{3125}\,t + \frac{18752}{78125}\right)\right] > \left(\frac{49}{50}\right)^2.
+\end{align*}
+For $n \ge 6$ and $r = 4/n \le 2/3$, write $w = 1 - u = R e^{i\phi}$ with $|\phi| < \pi/2$. Since $w$ lies on the circle of radius $r$ centered at $1$, $\sin|\phi| = |\ImPart u|/R \le r$, whence $|\phi| \le 1.15\,r$ and $n|\phi| \le 4.6 < 3\pi/2$. Using $|1 - w^n|^2 = 1 - 2 R^n \cos(n\phi) + R^{2n}$ and the four-term exponential inequality $1 - t + t^2/2 - t^3/6 \le e^{-t}$ ($t \ge 0$), we partition into four elementary cases:
+\begin{enumerate}
+\item $\pi/2 \le n|\phi| \le 3\pi/2$: $\cos(n\phi) \le 0$, so $|1 - w^n| \ge 1$.
+\item $n|\phi| < \pi/2$ and $\RePart u \le 0$: $R \le 5/3$ forces $|\ImPart u| \le 0.7r$, $\RePart u \le -0.7r$, $R^2 \ge 1 + 5/n$, so $R^{2n} \ge 6 > 4$ by Bernoulli's inequality and $|1 - w^n| \ge R^n - 1 > 1$.
+\item $\pi/4 \le n|\phi| < \pi/2$ and $\RePart u > 0$: $R \le 1$ forces $\RePart u \ge 0.919\,r$, $R^2 \le e^{-1.79 r}$, $R^n \le e^{-3.58} \le 0.0279$, and $\cos(n\phi) \le \sqrt{2}/2 < 0.708$, giving $|1 - w^n|^2 \ge 1 - 2(0.0279)(0.708) > (49/50)^2$.
+\item $n|\phi| < \pi/4$ and $\RePart u > 0$: $R \le 1$ forces $\RePart u \ge 0.98\,r$, $R^2 \le e^{-1.96 r}$, and $R^n \le e^{-3.92} \le 1/50$, giving $|1 - w^n| \ge 1 - R^n \ge 49/50$. \qedhere
+\end{enumerate}
+\end{proof}
+
+\begin{theorem}[Theorem 2: All-Degree GWS Critical-Value Lower Bound]
+\label{thm:gws-critval}
+For every $n \ge 2$ and every $P \in \mathcal{P}_n$,
+\[
+\max_{P'(\zeta) = 0} |P(\zeta)| \ge \frac{49}{50\,n}\, r_{\min}(P) = \frac{0.98}{n}\, r_{\min}(P).
+\]
+Consequently, letting $\kappa(P) = r_{\max}(P)/r_{\min}(P) \ge 1$ be the critical-point modulus spread:
+\begin{enumerate}
+\item \textbf{Bounded-Spread Dual Smale Bound:} For every $n \ge 2$ and every $P \in \mathcal{P}_n$,
+\[
+\max_{P'(\zeta) = 0} \left|\frac{P(\zeta)}{\zeta}\right| \ge \frac{49}{50\,\kappa(P)\,n}.
+\]
+In particular, this strictly beats the best unconditional $O(1/n^2)$ bound~\cite{JatarNg2026} whenever $\kappa(P) < 0.98\,n$.
+\item \textbf{Equal-Modulus Dual Smale to 98\%:} If $|\zeta_1| = \dots = |\zeta_{n-1}|$ (so $\kappa(P) = 1$), then
+\[
+\max_{P'(\zeta) = 0} \left|\frac{P(\zeta)}{\zeta}\right| \ge \frac{49}{50\,n} \qquad (\forall\, n \ge 2).
+\]
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+Set $r = r_n \cdot r_{\min}(P)$ with $r_n$ from Lemma~\ref{lem:circle-bound}. Since $r_n < 2\sin(\pi/n)$, Theorem~\ref{thm:zero-free} guarantees $P(z) \neq 0$ on $0 < |z| \le r$.
+On the circle $|z| = r$, every factor $w_k z$ satisfies $|w_k z| \le r_n$. By Grace--Walsh--Szeg\"o on $\overline{D(0, r_n)}$, there exists $|v| \le r_n$ with $P(z) = z F_n(v)$. Since $F_n$ is nonvanishing on $\overline{D(0, r_n)}$ (as $r_n < 2\sin(\pi/n)$) and satisfies $|F_n(u)| = |1 - (1 - u)^n|/(n r_n) \ge 49/(50 n r_n)$ on $|u| = r_n$ by Lemma~\ref{lem:circle-bound}, the Minimum Modulus Principle gives $|F_n(v)| \ge 49/(50 n r_n)$, hence
+\[
+|P(z)| = r\, |F_n(v)| \ge (r_n r_{\min}) \cdot \frac{49}{50\,n\,r_n} = \frac{49}{50\,n}\, r_{\min}(P) \qquad (\forall\, |z| = r).
+\]
+Applying Theorem~\ref{thm:mountain-pass} produces a critical point $\zeta$ with $|P(\zeta)| \ge \frac{49}{50n} r_{\min}(P)$. Dividing by $|\zeta| \le r_{\max}(P) = \kappa(P) r_{\min}(P)$ gives the two corollaries.
+\end{proof}
+
+\begin{remark}[Asymptotic sharpness of the GWS circle method]
+Optimizing the radius $r = c/n$ in $\min_{|u| = c/n} |1 - (1 - u)^n|$ yields $1 - e^{-4} \approx 0.98168$ at $c = 4$ and converges to $\sup_{c > 0} \min_{|z|=c} |1 - e^{-z}| \approx 0.99326$ near $c \approx 4.96$ as $n \to \infty$. Thus the GWS circle method captures over $99.3\%$ of the conjectured $r_{\min}/n$ critical-value bound for all large degrees (and exact $100\%$ for $n = 2, 3$).
+\end{remark}
+
+\section{Theorems 3 and 4: Isolated Minimal Critical Point and Universal Strict Local Minimum}
+
+\begin{theorem}[Theorem 3: Isolated Minimal Critical Point Theorem]
+\label{thm:isolated}
+Let $n \ge 2$ and $P \in \mathcal{P}_n$. Suppose there exists a critical point $\zeta_j$ such that $|\zeta_k| \ge n|\zeta_j|$ for all $k \neq j$ (equivalently, all normalized inverse ratios satisfy $|w_k| \le 1/n$). Then
+\[
+\left|\frac{P(\zeta_j)}{\zeta_j}\right| > \frac{5}{18} \approx 0.2778,
+\]
+and in particular $|P(\zeta_j)/\zeta_j| \ge 1/n$ for all $n \ge 2$ (strictly $> 1/n$ for all $n \ge 3$).
+\end{theorem}
+
+\begin{proof}
+For $n = 2$, $|P(\zeta_1)/\zeta_1| = 1/2 > 5/18$. For $n \ge 3$, Grace--Walsh--Szeg\"o on $\overline{D(0, 1/n)}$ yields $|\zeta| \le 1/n$ such that $P(\zeta_j)/\zeta_j = G_n(\zeta)$.
+For $n = 3$, $|G_3(\zeta)| = |1/2 - \zeta/6| \ge 1/2 - 1/18 = 4/9 > 5/18$.
+For $n \ge 4$, using $\binom{n-2}{m} m! \le n^m$ and the elementary factorial bound $6 \cdot 4^{m-1} \le (m + 2)!$ ($m \ge 1$), every term $m \ge 1$ in $G_n(\zeta) = \frac{1}{2} + \sum_{m=1}^{n-2} (-1)^m \frac{\binom{n-2}{m}}{(m+1)(m+2)} \zeta^m$ has modulus at most
+\[
+\frac{\binom{n-2}{m}}{(m+1)(m+2)\, n^m} \le \frac{1}{(m+2)!} \le \frac{1}{6 \cdot 4^{m-1}}.
+\]
+Summing the geometric series gives $|G_n(\zeta) - 1/2| < \frac{1/6}{1 - 1/4} = \frac{2}{9}$, whence $|G_n(\zeta)| > \frac{1}{2} - \frac{2}{9} = \frac{5}{18} > \frac{1}{4} \ge \frac{1}{n}$.
+\end{proof}
+
+\begin{theorem}[Theorem 4: Universal Strict Local Minimum Quadratic Form~\cite{BesevicN8,BesevicN9}]
+\label{thm:local-min}
+For every $n \ge 3$ and any real vectors $x, y \in \RR^{n-2}$ satisfying the closed unit disk constraint $2 x_k + x_k^2 + y_k^2 \le 0$ ($w_k = 1 + x_k + i y_k \in \overline{\DD}$),
+\begin{multline*}
+\frac{2}{n-1}\sum_{k=1}^{n-2} (-x_k) - \frac{2}{(n-1)(n-2)}\!\left[\left(\sum_{k=1}^{n-2} y_k\right)^2 - \sum_{k=1}^{n-2} y_k^2\right] + \frac{1}{(n-1)^2}\left(\sum_{k=1}^{n-2} y_k\right)^2 \\
+\ge \frac{n}{(n-1)^2(n-2)}\sum_{k=1}^{n-2} y_k^2 + \frac{1}{n-1}\sum_{k=1}^{n-2} x_k^2.
+\end{multline*}
+In particular, the second-order expansion of $|n P(1)|^2 - 1$ around the extremal polynomial $P_n$ is strictly positive definite on the closed unit polydisk $\overline{\DD}^{n-2}$ for every degree $n \ge 3$.
+\end{theorem}
+
+\section{Discussion: The Single-Component $O(1/n^2)$ Barrier and a Stronger Sum Conjecture}
+
+Theorem~\ref{thm:gws-critval} highlights the exact structural dichotomy governing the open all-degree Dual Smale Conjecture:
+\begin{itemize}
+\item When the critical-point spread $\kappa(P) = r_{\max}/r_{\min}$ is moderate ($\kappa(P) = O(1)$), Theorem~\ref{thm:gws-critval} already achieves $O(1/n)$ (and $0.98/n$ at $\kappa = 1$).
+\item When a single minimal critical point is strongly isolated from the rest ($|\zeta_k|/|\zeta_1| \ge n$), Theorem~\ref{thm:isolated} achieves an $n$-independent constant $> 5/18$.
+\item When all critical points lie in a supporting half-plane $\RePart(\zeta_k/\zeta_j) \ge 1$, Theorem~\ref{thm:half-plane} achieves the exact conjectured bound $1/n$ with strict uniqueness regardless of $\kappa(P)$.
+\end{itemize}
+
+Why, then, do all known unconditional all-degree lower bounds~\cite{Dubinin2019,JatarNg2026} stall at $\Theta(1/n^2)$?
+Consider the shifted Chebyshev polynomial normalized to $\mathcal{P}_n$, namely
+\[
+Q_n(z) := \frac{1 - T_n(1 - z)}{n^2},
+\]
+where $T_n(\cos\theta) = \cos(n\theta)$ (so $Q_n(0) = 0$ and $Q_n'(0) = T_n'(1)/n^2 = 1$). All $n - 1$ critical values of $Q_n$ satisfy $|Q_n(\zeta_j)| \in \{0, 2/n^2\}$, while its critical points $\zeta_j = 1 - \cos(j\pi/n)$ ($1 \le j \le n - 1$) range from $|\zeta_1| = 2\sin^2(\pi/(2n)) = \Theta(1/n^2)$ to $|\zeta_{n-1}| = 2\cos^2(\pi/(2n)) = \Theta(1)$, giving spread $\kappa(Q_n) = \Theta(n^2)$ and $\max_j |Q_n(\zeta_j)/\zeta_j| = |Q_n(\zeta_1)/\zeta_1| = \Theta(1) \gg 1/n$.
+However, by perturbing the critical values slightly so that $|P(\zeta_1)|, \dots, |P(\zeta_{n-2})| = 1.01/n^2$ while $|P(\zeta_{n-1})| = 1/n^2$, the maximal univalent preimage disk $U_0(L_*)$ around $0$ hits the \emph{outermost} critical point $\zeta_{n-1}$ first at level $L_* = 1/n^2$, giving $|P(\zeta_*)/\zeta_*| = O(1/n^2)$!
+Thus \emph{any} argument that extracts a bound solely from the single critical point $\zeta_*$ on the boundary of the maximal univalent disk $U_0(L_*)$ (including the Markov-type lemniscate bounds of~\cite{Dubinin2019,JatarNg2026}) is structurally incapable of beating $O(1/n^2)$.
+
+Breaking the $1/n^2$ barrier unconditionally for all $P \in \mathcal{P}_n$ therefore requires exploiting \emph{multiple} critical points simultaneously. Numerical global optimization up to degree $n = 25$ suggests that an even stronger global invariant holds:
+
+\begin{conjecture}[Stronger Sum-of-Quotients Conjecture]
+\label{conj:sum}
+There exists an absolute constant $c > 0$ (numerically consistent with $c = 1/e \approx 0.36788$, approached asymptotically by $z(1 - z)^{n-1}$ for which the sum equals $(1 - 1/n)^{n-1} \to 1/e$) such that for every $n \ge 2$ and every $P \in \mathcal{P}_n$,
+\[
+\sum_{j=1}^{n-1} \left|\frac{P(\zeta_j)}{\zeta_j}\right| \ge c.
+\]
+\end{conjecture}
+
+By the pigeonhole principle, Conjecture~\ref{conj:sum} immediately implies $\max_j |P(\zeta_j)/\zeta_j| \ge c/(n-1)$, which would shatter the $O(1/n^2)$ barrier unconditionally for all $n \ge 2$.
+
+\section{Complete Lean 4.36.0 Formalization and Axiom Audit}
+\label{sec:lean}
+
+Every theorem and lemma in Sections~2--5 has been formally verified in Lean~4.36.0 against Mathlib, with zero \texttt{sorry}, zero \texttt{native\_decide}, and zero external numerical dependencies. Table~\ref{tab:lean} summarizes the verified modules and main theorems; running \texttt{lake env lean check\_axioms.lean} confirms that all 17 audited declarations depend strictly on the three standard axioms (\texttt{propext}, \texttt{Classical.choice}, \texttt{Quot.sound}).
+
+\begin{table}[h]
+\centering
+\scriptsize
+\begin{tabular}{@{}p{3.1cm}p{5.8cm}p{5.5cm}@{}}
+\toprule
+Lean Module & Formalized Theorem & Mathematical Result \\
+\midrule
+\texttt{GraceWalshSzego} & \texttt{grace\_walsh\_szego\_closedBall} & Shifted-disk GWS coincidence \\
+\texttt{GraceWalshSzego} & \texttt{grace\_walsh\_szego\_closedBall\_unique\_boundary} & Lemma~\ref{lem:gws-unique} (strict uniqueness) \\
+\texttt{PolynomialReduction} & \texttt{GnPoly\_closed\_form}, \texttt{GnPoly\_eq\_RnPoly} & Proposition~\ref{prop:gn-identities} (all $n \ge 2$) \\
+\texttt{HalfPlaneTheorem} & \texttt{RnPoly\_ne\_zero\_of\_norm\_le\_one} & Lemma~\ref{lem:gn-zerofree} (zero-free on $|1-w|\le 1$) \\
+\texttt{HalfPlaneTheorem} & \texttt{GnPoly\_halfDisk\_lower\_bound} & Lemma~\ref{lem:gn-halfdisk} (min modulus on $\overline{D(1/2,1/2)}$) \\
+\texttt{HalfPlaneTheorem} & \texttt{dual\_smale\_supporting\_half\_plane\_poly} & Theorem~\ref{thm:half-plane} (exact $1/n$ + uniqueness) \\
+\texttt{UnivalentCriticalValue} & \texttt{dual\_smale\_zero\_free\_disk} & Theorem~\ref{thm:zero-free} ($|z_0| \ge 2\sin(\pi/n)\,r_{\min}$) \\
+\texttt{UnivalentCriticalValue} & \texttt{polynomial\_mountain\_pass} & Theorem~\ref{thm:mountain-pass} (Newton-cutoff deformation) \\
+\texttt{UnivalentCriticalValue} & \texttt{circle\_one\_sub\_pow\_lower\_bound} & Lemma~\ref{lem:circle-bound} ($|1-(1-u)^n| \ge 49/50$) \\
+\texttt{UnivalentCriticalValue} & \texttt{dual\_smale\_gws\_critical\_value\_bound} & Theorem~\ref{thm:gws-critval} ($|P(\zeta)| \ge \frac{49}{50n} r_{\min}$) \\
+\texttt{UnivalentCriticalValue} & \texttt{dual\_smale\_bounded\_spread}, \texttt{dual\_smale\_equal\_modulus} & Bounded-spread \& 98\% equal-modulus \\
+\texttt{IsolatedAndLocal} & \texttt{dual\_smale\_isolated\_critical\_point\_poly} & Theorem~\ref{thm:isolated} ($> 5/18$ and $\ge 1/n$) \\
+\texttt{IsolatedAndLocal} & \texttt{universal\_local\_quadratic\_lower\_bound} & Theorem~\ref{thm:local-min} (all $n \ge 3$) \\
+\bottomrule
+\end{tabular}
+\caption{Summary of formally verified Lean~4.36.0 theorems in \texttt{dual-smale-all-n} (3,543 lines across 6 files). All 17 audited theorems depend strictly on \texttt{[propext, Classical.choice, Quot.sound]}.}
+\label{tab:lean}
+\end{table}
+
+\begin{thebibliography}{9}
+
+\bibitem{Smale1981}
+S.~Smale,
+\emph{The fundamental theorem of algebra and complexity theory},
+Bull.\ Amer.\ Math.\ Soc.\ (N.S.) \textbf{4} (1981), no.~1, 1--36.
+
+\bibitem{Dubinin2006}
+V.~N.~Dubinin,
+\emph{On the mean value theorem for polynomials},
+Mat.\ Zametki \textbf{80} (2006), no.~4, 625--629.
+
+\bibitem{DubininSugawa2009}
+V.~N.~Dubinin and T.~Sugawa,
+\emph{Dual mean value problem for complex polynomials},
+Proc.\ Japan Acad.\ Ser.\ A Math.\ Sci.\ \textbf{85} (2009), no.~9, 135--137.
+
+\bibitem{NgZhang2016}
+T.~W.~Ng and Y.~Zhang,
+\emph{Smale's mean value conjecture for finite Blaschke products},
+J.\ Anal.\ \textbf{24} (2016), no.~2, 331--345.
+
+\bibitem{Dubinin2019}
+V.~N.~Dubinin,
+\emph{Geometric versions of Schwarz's lemma and symmetrization},
+J.\ Math.\ Sci.\ \textbf{242} (2019), 501--510.
+
+\bibitem{Tyson2019}
+J.~T.~Tyson,
+\emph{Dual mean value conjecture for polynomials of degree seven},
+Comput.\ Methods Funct.\ Theory \textbf{19} (2019), 651--667.
+
+\bibitem{Tang2025}
+Y.~Tang,
+\emph{The dual Smale mean value conjecture for odd polynomials},
+arXiv:2510.16875 (2025).
+
+\bibitem{JatarNg2026}
+A.~Jatar and T.~W.~Ng,
+\emph{Improved lower bounds for the dual Smale mean value conjecture},
+arXiv:2608.27047 (2026).
+
+\bibitem{BesevicN8}
+I.~Besevic,
+\emph{A complete formal and computer-assisted proof of the Dual Smale Mean Value Conjecture for degree $n = 8$},
+Zenodo \texttt{10.5281/zenodo.24528837} (2026).
+
+\bibitem{BesevicN9}
+I.~Besevic,
+\emph{A complete formal and computer-assisted proof of the Dual Smale Mean Value Conjecture for degree $n = 9$},
+Zenodo \texttt{10.5281/zenodo.24534765} (2026).
+
+\end{thebibliography}
+
+\end{document}

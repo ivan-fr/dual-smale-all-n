@@ -1,0 +1,19 @@
+import DualSmale
+
+#print axioms DualSmale.grace_walsh_szego_closedBall
+#print axioms DualSmale.grace_walsh_szego_closedBall_unique_boundary
+#print axioms DualSmale.GnPoly_closed_form
+#print axioms DualSmale.GnPoly_eq_RnPoly
+#print axioms DualSmale.RnPoly_ne_zero_of_norm_le_one
+#print axioms DualSmale.GnPoly_halfDisk_lower_bound
+#print axioms DualSmale.dual_smale_supporting_half_plane
+#print axioms DualSmale.dual_smale_supporting_half_plane_poly
+#print axioms DualSmale.dual_smale_zero_free_disk
+#print axioms DualSmale.polynomial_mountain_pass
+#print axioms DualSmale.circle_one_sub_pow_lower_bound
+#print axioms DualSmale.dual_smale_gws_critical_value_bound
+#print axioms DualSmale.dual_smale_bounded_spread
+#print axioms DualSmale.dual_smale_equal_modulus
+#print axioms DualSmale.dual_smale_isolated_critical_point
+#print axioms DualSmale.dual_smale_isolated_critical_point_poly
+#print axioms DualSmale.universal_local_quadratic_lower_bound
